@@ -1,0 +1,8 @@
+PORTAL DE ALIADOS VELQOR (Netlify)
+1. Sube esta carpeta a un repositorio nuevo de GitHub.
+2. En Netlify: Add new site > Import from Git > elige el repositorio. Dominio sugerido: aliados.velqordigital.shop
+3. Site configuration > Environment variables: crea ADMIN_EMAILS con tu correo (varios, separados por coma).
+4. Project configuration > Identity: Enable. Registro: Open. Autoconfirm: OFF.
+5. Entra al sitio con tu correo (Crear cuenta, confirma el correo). Verás el Panel de VELQOR.
+6. Cada aliado crea su cuenta; tú lo apruebas en "Aprobar aliado" y registras sus ventas pagadas.
+Niveles y porcentajes: editar NIVELES en netlify/functions/aliado.mjs.
