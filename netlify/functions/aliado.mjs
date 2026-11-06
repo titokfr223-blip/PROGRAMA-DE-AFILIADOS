@@ -5,6 +5,7 @@ const NIVELES=[{n:0,nombre:'Aliado',pct:20},{n:3,nombre:'Plata',pct:25},{n:10,no
 const nivel=n=>[...NIVELES].reverse().find(x=>n>=x.n);
 const siguiente=n=>NIVELES.find(x=>x.n>n)||null;
 const admins=(process.env.ADMIN_EMAILS||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+const norm=s=>{const d=String(s||'').replace(/\D/g,'');return d.length===10?'57'+d:(d.length>=11&&d.length<=15?d:'')};
 const J=(o,s=200)=>Response.json(o,{status:s});
 export default async (req)=>{
   const user=await getUser();
@@ -12,17 +13,19 @@ export default async (req)=>{
   const email=String(user.email).toLowerCase(),isAdmin=admins.includes(email),store=getStore('aliados');
   const get=k=>store.get(k,{type:'json'});
   if(req.method==='GET'){
-    if(isAdmin){const {blobs}=await store.list();return J({admin:true,aliados:(await Promise.all(blobs.map(b=>get(b.key)))).filter(Boolean)})}
+    if(isAdmin){const {blobs}=await store.list();const aliados=(await Promise.all(blobs.map(b=>get(b.key)))).filter(Boolean),sol=getStore('solicitudes'),sl=await sol.list(),solicitudes=(await Promise.all(sl.blobs.map(b=>sol.get(b.key,{type:'json'})))).filter(x=>x&&!aliados.some(a=>a.email===x.email));return J({admin:true,aliados,solicitudes})}
     const a=await get(email);if(!a)return J({pendiente:true,email,adminConfigurado:admins.length>0});
     const n=(a.invitados||[]).length;return J({aliado:a,nivel:nivel(n),siguiente:siguiente(n)});
   }
+  const b=await req.json().catch(()=>({}));
+  if(b.accion==='solicitud'){const w=norm(b.whatsapp);if(!w)return J({error:'Escribe un número de WhatsApp válido (10 dígitos).'},400);await getStore('solicitudes').setJSON(email,{email,nombre:String(b.nombre||'').slice(0,80),whatsapp:w,fecha:new Date().toISOString().slice(0,10)});return J({ok:1})}
   if(!isAdmin)return J({error:'Sin permiso.'},403);
-  const b=await req.json().catch(()=>({})),k=String(b.email||'').toLowerCase().trim();
+  const k=String(b.email||'').toLowerCase().trim();
   if(!k)return J({error:'Falta el correo.'},400);
   if(b.accion==='alta'){
     if(await get(k))return J({error:'Ese aliado ya existe.'},400);
     const codigo='VQ-'+(k.split('@')[0].replace(/[^a-z0-9]/g,'').slice(0,5).toUpperCase()||'ALI');
-    await store.setJSON(k,{email:k,nombre:String(b.nombre||'').slice(0,80),codigo,ventas:[],invitados:[],creado:new Date().toISOString().slice(0,10)});return J({ok:1});
+    await store.setJSON(k,{email:k,nombre:String(b.nombre||'').slice(0,80),codigo,whatsapp:norm(b.whatsapp),ventas:[],invitados:[],creado:new Date().toISOString().slice(0,10)});try{await getStore('solicitudes').delete(k)}catch{}return J({ok:1});
   }
   const a=await get(k);if(!a)return J({error:'Aliado no encontrado.'},404);
   if(b.accion==='venta'){
