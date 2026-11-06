@@ -24,8 +24,8 @@ export default async (req)=>{
   if(!k)return J({error:'Falta el correo.'},400);
   if(b.accion==='alta'){
     if(await get(k))return J({error:'Ese aliado ya existe.'},400);
-    const codigo='VQ-'+(k.split('@')[0].replace(/[^a-z0-9]/g,'').slice(0,5).toUpperCase()||'ALI');
-    await store.setJSON(k,{email:k,nombre:String(b.nombre||'').slice(0,80),codigo,whatsapp:norm(b.whatsapp),ventas:[],invitados:[],creado:new Date().toISOString().slice(0,10)});try{await getStore('solicitudes').delete(k)}catch{}return J({ok:1});
+    const base='VQ-'+(k.split('@')[0].replace(/[^a-z0-9]/g,'').slice(0,5).toUpperCase()||'ALI'),{blobs:bl}=await store.list(),usados=new Set((await Promise.all(bl.map(x=>get(x.key)))).filter(Boolean).map(x=>x.codigo)),so=await getStore('solicitudes').get(k,{type:'json'}).catch(()=>null);let codigo=base,n=2;while(usados.has(codigo))codigo=base+n++;
+    await store.setJSON(k,{email:k,nombre:String(b.nombre||so?.nombre||'').slice(0,80),codigo,whatsapp:norm(b.whatsapp)||so?.whatsapp||'',ventas:[],invitados:[],creado:new Date().toISOString().slice(0,10)});try{await getStore('solicitudes').delete(k)}catch{}return J({ok:1});
   }
   const a=await get(k);if(!a)return J({error:'Aliado no encontrado.'},404);
   if(b.accion==='venta'){
@@ -35,6 +35,8 @@ export default async (req)=>{
   }else if(b.accion==='invitado'){
     const neg=String(b.negocio||'').trim().slice(0,80);if(!neg)return J({error:'Escribe el nombre del negocio.'},400);
     (a.invitados||=[]).push({id:Date.now().toString(36),fecha:new Date().toISOString().slice(0,10),negocio:neg});
+  }else if(b.accion==='whatsapp'){
+    const w=norm(b.whatsapp);if(!w)return J({error:'Número inválido: escribe 10 dígitos.'},400);a.whatsapp=w;
   }else if(b.accion==='quitar'){
     if(b.tipo==='invitado')a.invitados=(a.invitados||[]).filter(x=>x.id!==b.id);
     else if(b.tipo==='venta')a.ventas=a.ventas.filter(x=>x.id!==b.id);
